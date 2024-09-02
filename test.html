@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget App</title>
+<style>
+body {
+font-family: Arial, sans-serif;
+margin: 20px;
+background-color: #f0f8ff;
+}
+h1 {
+color: #333;
+text-align: center;
+}
+form {
+max-width: 600px;
+margin: 0 auto;
+padding: 20px;
+border: 1px solid #ccc;
+border-radius: 8px;
+background-color: #fff;
+box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+label {
+display: block;
+margin: 10px 0 5px;
+font-weight: bold;
+color: #333;
+}
+input {
+width: calc(100% - 22px);
+padding: 10px;
+margin-bottom: 10px;
+border: 1px solid #ccc;
+border-radius: 4px;
+font-size: 16px;
+}
+button {
+width: 100%;
+padding: 10px;
+background-color: #4CAF50;
+color: white;
+border: none;
+border-radius: 4px;
+font-size: 16px;
+cursor: pointer;
+margin-top: 10px;
+}
+button:hover {
+background-color: #45a049;
+}
+#summary {
+max-width: 600px;
+margin: 20px auto;
+padding: 20px;
+border: 1px solid #ccc;
+border-radius: 8px;
+background-color: #fff;
+box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+#summary h2 {
+color: #333;
+margin-bottom: 10px;
+}
+#summary p {
+margin: 5px 0;
+font-size: 16px;
+color: #555;
+}
+.expense-list {
+margin: 10px 0;
+}
+.expense-item {
+padding: 8px;
+border: 1px solid #ddd;
+border-radius: 4px;
+margin-bottom: 6px;
+background-color: #f9f9f9;
+}
+</style>
+</head>
+<body>
+<h1>Budget App</h1>
+<form id="budget-form">
+<label for="income">กรุณากรอกรายได้ประจำเดือนของคุณ:</label>
+<input type="number" id="income" name="income" required>
+
+<label for="savings_goal_percent">กรุณากรอกเปอร์เซ็นต์เป้าหมายการออม:</label>
+<input type="number" id="savings_goal_percent" name="savings_goal_percent" required>
+
+<label for="savings_goal_amount">เป้าหมายการเก็บเงินเพื่อซื้อสิ่งที่อยากได้:</label>
+<input type="number" id="savings_goal_amount" name="savings_goal_amount" required>
+
+<label for="expenses">กรุณากรอกค่าใช้จ่าย (ระบุรายละเอียดและจำนวนเงิน คั่นด้วย ,):</label>
+<input type="text" id="expenses" name="expenses" required placeholder="เช่น ค่าเช่าบ้าน:5000, ค่ากิน:3000">
+
+<button type="button" onclick="calculateBudget()">คำนวณ</button>
+</form>
+
+<div id="summary"></div>
+
+<script>
+// Load previously saved data if exists
+window.onload = function() {
+const savedData = JSON.parse(localStorage.getItem('budgetData'));
+if (savedData) {
+document.getElementById('income').value = savedData.income || '';
+document.getElementById('savings_goal_percent').value = savedData.savingsGoalPercent || '';
+document.getElementById('savings_goal_amount').value = savedData.savingsGoalAmount || '';
+document.getElementById('expenses').value = savedData.expenses || '';
+displaySummary(savedData);
+}
+};
+
+function calculateBudget() {
+const income = parseFloat(document.getElementById('income').value);
+const savingsGoalPercent = parseFloat(document.getElementById('savings_goal_percent').value);
+const savingsGoalAmount = parseFloat(document.getElementById('savings_goal_amount').value);
+const expensesInput = document.getElementById('expenses').value;
+const expensesArray = expensesInput.split(',').map(expense => {
+const [description, amount] = expense.split(':').map(part => part.trim());
+return { description, amount: parseFloat(amount) };
+}).filter(expense => !isNaN(expense.amount));
+const savingsAmount = income * (savingsGoalPercent / 100);
+const totalExpenses = expensesArray.reduce((acc, curr) => acc + curr.amount, 0);
+const remainingBudget = income - savingsAmount - totalExpenses;
+const expenseListHtml = expensesArray.map(expense =>
+`<div class="expense-item">
+<strong>${expense.description}:</strong> ${expense.amount.toFixed(2)} บาท
+</div>`
+).join('');
+const monthsToAchieveGoal = savingsGoalAmount / savingsAmount;
+const daysInMonth = 30; // Approximate days in a month
+const weeksInMonth = daysInMonth / 7;
+let timeToAchieveGoal;
+if (monthsToAchieveGoal < 1) {
+const totalDays = savingsGoalAmount / savingsAmount * daysInMonth;
+const weeks = Math.floor(totalDays / 7);
+const days = Math.round(totalDays % 7);
+timeToAchieveGoal = `${weeks} สัปดาห์ ${days} วัน`;
+} else {
+const wholeMonths = Math.floor(monthsToAchieveGoal);
+const extraDays = (monthsToAchieveGoal - wholeMonths) * daysInMonth;
+const extraWeeks = Math.floor(extraDays / 7);
+const extraRemainingDays = Math.round(extraDays % 7);
+timeToAchieveGoal = `${wholeMonths} เดือน ${extraWeeks} สัปดาห์ ${extraRemainingDays} วัน`;
+}
+const summaryData = {
+income,
+savingsGoalPercent,
+savingsGoalAmount,
+expenses: expensesInput,
+savingsAmount,
+totalExpenses,
+remainingBudget,
+timeToAchieveGoal,
+expenseListHtml
+};
+// Save data to localStorage
+localStorage.setItem('budgetData', JSON.stringify(summaryData));
+displaySummary(summaryData);
+}
+function displaySummary(data) {
+const summary = `
+<h2>สรุปข้อมูล:</h2>
+<p>รายได้รวม: ${data.income.toFixed(2)} บาท</p>
+<p>จำนวนเงินที่ออม: ${data.savingsAmount.toFixed(2)} บาทต่อเดือน</p>
+<p>ค่าใช้จ่ายรวม: ${data.totalExpenses.toFixed(2)} บาท</p>
+<p>งบประมาณที่เหลือ: ${data.remainingBudget.toFixed(2)} บาท</p>
+<p>ต้องใช้เวลา ${data.timeToAchieveGoal} เพื่อบรรลุเป้าหมายการออม ${data.savingsGoalAmount.toFixed(2)} บาท</p>
+<div class="expense-list">
+<h3>รายละเอียดค่าใช้จ่าย:</h3>
+${data.expenseListHtml}
+</div>
+`;
+document.getElementById('summary').innerHTML = summary;
+}
+</script>
+</body>
+</html>
